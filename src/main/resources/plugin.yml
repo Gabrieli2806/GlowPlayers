@@ -1,0 +1,6 @@
+name: GlowPlayers
+version: '1.0'
+main: com.g2806.GlowPlayers.GlowPlayers
+api-version: '1.21'
+description: "Plugin that makes all players glow automatically with unique colors based on their join order."
+author: Gabrieli2806

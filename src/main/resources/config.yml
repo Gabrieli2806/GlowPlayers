@@ -1,0 +1,11 @@
+# Idioma del plugin: 'en' para inglés (por defecto), 'es' para español
+language: en
+
+# Mensajes personalizados (opcional, no usado directamente en este caso, pero como ejemplo)
+messages:
+  en:
+    enabled: "GlowPlayer has been enabled!"
+    disabled: "GlowPlayer has been disabled!"
+  es:
+    enabled: "¡GlowPlayer ha sido activado!"
+    disabled: "¡GlowPlayer ha sido desactivado!"
