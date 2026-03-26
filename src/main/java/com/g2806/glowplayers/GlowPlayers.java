@@ -4,14 +4,14 @@ import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
-import net.minecraft.entity.effect.StatusEffectInstance;
-import net.minecraft.entity.effect.StatusEffects;
-import net.minecraft.scoreboard.Scoreboard;
-import net.minecraft.scoreboard.Team;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.scores.Scoreboard;
+import net.minecraft.world.scores.PlayerTeam;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,29 +25,29 @@ public class GlowPlayers implements ModInitializer {
 	public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 
 	// Locator Bar color palette — ordered for maximum visual distinction
-	private static final Formatting[] GLOW_COLORS = {
-		Formatting.WHITE,          // Player 1
-		Formatting.BLUE,           // Player 2
-		Formatting.RED,            // Player 3
-		Formatting.GREEN,          // Player 4
-		Formatting.YELLOW,         // Player 5
-		Formatting.AQUA,           // Player 6
-		Formatting.LIGHT_PURPLE,   // Player 7
-		Formatting.GOLD,           // Player 8
-		Formatting.DARK_PURPLE,    // Player 9
-		Formatting.DARK_AQUA,      // Player 10
-		Formatting.DARK_GREEN,     // Player 11
-		Formatting.DARK_RED,       // Player 12
-		Formatting.DARK_BLUE,      // Player 13
-		Formatting.GRAY,           // Player 14
-		Formatting.DARK_GRAY,      // Player 15
-		Formatting.BLACK,          // Player 16
+	private static final ChatFormatting[] GLOW_COLORS = {
+		ChatFormatting.WHITE,          // Player 1
+		ChatFormatting.BLUE,           // Player 2
+		ChatFormatting.RED,            // Player 3
+		ChatFormatting.GREEN,          // Player 4
+		ChatFormatting.YELLOW,         // Player 5
+		ChatFormatting.AQUA,           // Player 6
+		ChatFormatting.LIGHT_PURPLE,   // Player 7
+		ChatFormatting.GOLD,           // Player 8
+		ChatFormatting.DARK_PURPLE,    // Player 9
+		ChatFormatting.DARK_AQUA,      // Player 10
+		ChatFormatting.DARK_GREEN,     // Player 11
+		ChatFormatting.DARK_RED,       // Player 12
+		ChatFormatting.DARK_BLUE,      // Player 13
+		ChatFormatting.GRAY,           // Player 14
+		ChatFormatting.DARK_GRAY,      // Player 15
+		ChatFormatting.BLACK,          // Player 16
 	};
 
 	private static final String TEAM_PREFIX = "gp_glow_";
 
 	// Track current color per player to avoid redundant messages
-	private final Map<UUID, Formatting> currentColors = new HashMap<>();
+	private final Map<UUID, ChatFormatting> currentColors = new HashMap<>();
 	private int tickCounter = 0;
 
 	@Override
@@ -64,8 +64,8 @@ public class GlowPlayers implements ModInitializer {
 
 		// Player leaves server
 		ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
-			ServerPlayerEntity player = handler.getPlayer();
-			currentColors.remove(player.getUuid());
+			ServerPlayer player = handler.getPlayer();
+			currentColors.remove(player.getUUID());
 			server.execute(() -> {
 				removePlayerFromGlowTeam(server.getScoreboard(), player);
 				updateAllPlayerColors(server);
@@ -74,7 +74,7 @@ public class GlowPlayers implements ModInitializer {
 
 		// Player respawns after death
 		ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
-			MinecraftServer server = newPlayer.getEntityWorld().getServer();
+			MinecraftServer server = newPlayer.level().getServer();
 			server.execute(() -> {
 				applyGlowing(newPlayer);
 				updateAllPlayerColors(server);
@@ -86,8 +86,8 @@ public class GlowPlayers implements ModInitializer {
 			tickCounter++;
 			if (tickCounter >= 100) { // Every 5 seconds
 				tickCounter = 0;
-				for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
-					if (!player.hasStatusEffect(StatusEffects.GLOWING)) {
+				for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+					if (!player.hasEffect(MobEffects.GLOWING)) {
 						applyGlowing(player);
 					}
 				}
@@ -95,11 +95,11 @@ public class GlowPlayers implements ModInitializer {
 		});
 	}
 
-	private void applyGlowing(ServerPlayerEntity player) {
-		player.removeStatusEffect(StatusEffects.GLOWING);
-		player.addStatusEffect(new StatusEffectInstance(
-			StatusEffects.GLOWING,
-			StatusEffectInstance.INFINITE,
+	private void applyGlowing(ServerPlayer player) {
+		player.removeEffect(MobEffects.GLOWING);
+		player.addEffect(new MobEffectInstance(
+			MobEffects.GLOWING,
+			MobEffectInstance.INFINITE_DURATION,
 			0,      // amplifier
 			false,  // ambient
 			false,  // show particles
@@ -109,60 +109,60 @@ public class GlowPlayers implements ModInitializer {
 
 	private void updateAllPlayerColors(MinecraftServer server) {
 		Scoreboard scoreboard = server.getScoreboard();
-		List<ServerPlayerEntity> players = server.getPlayerManager().getPlayerList();
+		List<ServerPlayer> players = server.getPlayerList().getPlayers();
 
 		for (int i = 0; i < players.size(); i++) {
-			ServerPlayerEntity player = players.get(i);
-			Formatting color = GLOW_COLORS[i % GLOW_COLORS.length];
+			ServerPlayer player = players.get(i);
+			ChatFormatting color = GLOW_COLORS[i % GLOW_COLORS.length];
 			assignPlayerColor(scoreboard, player, color, i);
 		}
 
 		// Cleanup unused teams
 		for (int i = players.size(); i < GLOW_COLORS.length; i++) {
-			Team team = scoreboard.getTeam(TEAM_PREFIX + i);
-			if (team != null && team.getPlayerList().isEmpty()) {
-				scoreboard.removeTeam(team);
+			PlayerTeam team = scoreboard.getPlayerTeam(TEAM_PREFIX + i);
+			if (team != null && team.getPlayers().isEmpty()) {
+				scoreboard.removePlayerTeam(team);
 			}
 		}
 	}
 
-	private void assignPlayerColor(Scoreboard scoreboard, ServerPlayerEntity player, Formatting color, int index) {
+	private void assignPlayerColor(Scoreboard scoreboard, ServerPlayer player, ChatFormatting color, int index) {
 		removePlayerFromGlowTeam(scoreboard, player);
 
 		String teamName = TEAM_PREFIX + index;
-		Team team = scoreboard.getTeam(teamName);
+		PlayerTeam team = scoreboard.getPlayerTeam(teamName);
 		if (team == null) {
-			team = scoreboard.addTeam(teamName);
+			team = scoreboard.addPlayerTeam(teamName);
 		}
 		team.setColor(color);
 
-		scoreboard.addScoreHolderToTeam(player.getNameForScoreboard(), team);
+		scoreboard.addPlayerToTeam(player.getScoreboardName(), team);
 
 		// Only notify if color changed
-		Formatting previousColor = currentColors.get(player.getUuid());
+		ChatFormatting previousColor = currentColors.get(player.getUUID());
 		if (previousColor != color) {
-			currentColors.put(player.getUuid(), color);
-			player.sendMessage(
-				Text.empty()
-					.append(Text.literal("Glow color: ").formatted(Formatting.GRAY))
-					.append(Text.literal(formatColorName(color)).formatted(color)),
+			currentColors.put(player.getUUID(), color);
+			player.sendSystemMessage(
+				Component.empty()
+					.append(Component.literal("Glow color: ").withStyle(ChatFormatting.GRAY))
+					.append(Component.literal(formatColorName(color)).withStyle(color)),
 				true // action bar overlay
 			);
 		}
 	}
 
-	private void removePlayerFromGlowTeam(Scoreboard scoreboard, ServerPlayerEntity player) {
-		String playerName = player.getNameForScoreboard();
+	private void removePlayerFromGlowTeam(Scoreboard scoreboard, ServerPlayer player) {
+		String playerName = player.getScoreboardName();
 		for (int i = 0; i < GLOW_COLORS.length; i++) {
-			Team team = scoreboard.getTeam(TEAM_PREFIX + i);
-			if (team != null && team.getPlayerList().contains(playerName)) {
-				scoreboard.removeScoreHolderFromTeam(playerName, team);
+			PlayerTeam team = scoreboard.getPlayerTeam(TEAM_PREFIX + i);
+			if (team != null && team.getPlayers().contains(playerName)) {
+				scoreboard.removePlayerFromTeam(playerName, team);
 				break;
 			}
 		}
 	}
 
-	private String formatColorName(Formatting color) {
+	private String formatColorName(ChatFormatting color) {
 		String[] parts = color.getName().split("_");
 		StringBuilder sb = new StringBuilder();
 		for (String part : parts) {
