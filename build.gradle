@@ -18,6 +18,23 @@ repositories {
 	// for more information about repositories.
 }
 
+loom {
+	runs {
+		client {
+			client()
+			runDir "run"
+		}
+		client2 {
+			client()
+			runDir "run2"
+		}
+		client3 {
+			client()
+			runDir "run3"
+		}
+	}
+}
+
 dependencies {
 	// To change the versions see the gradle.properties file
 	minecraft "com.mojang:minecraft:${project.minecraft_version}"
