@@ -1,6 +1,15 @@
 name: GlowPlayers
-version: '1.0'
-main: com.g2806.GlowPlayers.GlowPlayers
+version: '${version}'
+main: com.g2806.glowplayers.GlowPlayersPlugin
 api-version: '1.21'
-description: "Plugin that makes all players glow automatically with unique colors based on their join order."
+description: "Players get colored glow effects by join order and can toggle their own glow with a command."
 author: Gabrieli2806
+commands:
+  glow:
+    description: Toggle your colored glow effect.
+    usage: /glow [on|off|toggle|status]
+    permission: glowplayers.use
+permissions:
+  glowplayers.use:
+    description: Lets players manage their own glow effect.
+    default: true

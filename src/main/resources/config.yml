@@ -1,11 +1,22 @@
-# Idioma del plugin: 'en' para inglés (por defecto), 'es' para español
 language: en
+default-glowing: true
 
-# Mensajes personalizados (opcional, no usado directamente en este caso, pero como ejemplo)
 messages:
   en:
-    enabled: "GlowPlayer has been enabled!"
-    disabled: "GlowPlayer has been disabled!"
+    enabled: "GlowPlayers has been enabled."
+    disabled: "GlowPlayers has been disabled."
+    glow-on: "&aYour glow is now enabled."
+    glow-off: "&eYour glow is now disabled."
+    glow-status-on: "&aYour glow is currently enabled."
+    glow-status-off: "&eYour glow is currently disabled."
+    usage: "&eUsage: /glow [on|off|toggle|status]"
+    player-only: "&cOnly players can use this command."
   es:
-    enabled: "¡GlowPlayer ha sido activado!"
-    disabled: "¡GlowPlayer ha sido desactivado!"
+    enabled: "¡GlowPlayers ha sido activado!"
+    disabled: "¡GlowPlayers ha sido desactivado!"
+    glow-on: "&aTu brillo ahora está activado."
+    glow-off: "&eTu brillo ahora está desactivado."
+    glow-status-on: "&aTu brillo está activado."
+    glow-status-off: "&eTu brillo está desactivado."
+    usage: "&eUso: /glow [on|off|toggle|status]"
+    player-only: "&cSolo los jugadores pueden usar este comando."
