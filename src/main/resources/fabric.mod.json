@@ -3,13 +3,14 @@
 	"id": "glowplayers",
 	"version": "${version}",
 	"name": "GlowPlayers",
-	"description": "Makes all players glow automatically with unique Locator Bar colors based on join order.",
+	"description": "Gives online players glow colors by join order and lets them toggle the effect with /glow.",
 	"authors": [
 		"Gabrieli2806"
 	],
 	"contact": {
-		"homepage": "https://modrinth.com/plugin/glowplayers",
-		"sources": "https://github.com/FabricMC/fabric-example-mod"
+		"homepage": "https://github.com/Gabrieli2806/GlowPlayers",
+		"sources": "https://github.com/Gabrieli2806/GlowPlayers",
+		"issues": "https://github.com/Gabrieli2806/GlowPlayers/issues"
 	},
 	"license": "MIT",
 	"icon": "assets/glowplayers/icon.png",
@@ -19,9 +20,6 @@
 			"com.g2806.glowplayers.GlowPlayers"
 		]
 	},
-	"mixins": [
-		"glowplayers.mixins.json"
-	],
 	"depends": {
 		"fabricloader": "*",
 		"minecraft": "~26.1",
