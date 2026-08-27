@@ -4,6 +4,7 @@ import com.g2806.glowplayers.GlowPlayers;
 import com.g2806.glowplayers.config.GlowConfig;
 import com.g2806.glowplayers.config.GlowPalette;
 import net.minecraft.ChatFormatting;
+import net.minecraft.world.scores.TeamColor;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.inventory.ContainerInput;
@@ -39,8 +40,8 @@ public class PaletteGui extends SimpleGui {
 		clearSlots();
 
 		for (int i = 0; i < GlowPalette.ALL_COLORS.size(); i++) {
-			ChatFormatting color = GlowPalette.ALL_COLORS.get(i);
-			int position = config.palette.indexOf(color.getName());
+			TeamColor color = GlowPalette.ALL_COLORS.get(i);
+			int position = config.palette.indexOf(color.getSerializedName());
 			boolean active = position >= 0;
 
 			List<Component> lore = new ArrayList<>();
@@ -91,7 +92,7 @@ public class PaletteGui extends SimpleGui {
 			if (COLOR_SLOTS[i] != slot) {
 				continue;
 			}
-			String name = GlowPalette.ALL_COLORS.get(i).getName();
+			String name = GlowPalette.ALL_COLORS.get(i).getSerializedName();
 			if (button == 1) {
 				config.palette.remove(name);
 				config.palette.add(0, name);

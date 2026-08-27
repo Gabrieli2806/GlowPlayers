@@ -4,6 +4,7 @@ import com.g2806.glowplayers.GlowPlayers;
 import com.g2806.glowplayers.config.GlowConfig;
 import com.g2806.glowplayers.config.GlowPalette;
 import net.minecraft.ChatFormatting;
+import net.minecraft.world.scores.TeamColor;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
@@ -59,13 +60,14 @@ public class PlayerGui extends SimpleGui {
 		ServerPlayer target = target();
 		String key = targetId.toString();
 		String manualName = config.playerColors.get(key);
-		ChatFormatting manual = GlowPalette.byName(manualName);
-		ChatFormatting current = GlowPlayers.manager().colorOf(targetId);
+		TeamColor manual = GlowPalette.byName(manualName);
+		TeamColor current = GlowPlayers.manager().colorOf(targetId);
 		boolean excluded = config.excludedPlayers.contains(key);
 
 		ItemStack head = GuiItems.of(Items.PLAYER_HEAD,
-			GuiItems.label(target == null ? key : target.getScoreboardName(),
-				current == null ? ChatFormatting.WHITE : current),
+			current == null
+				? GuiItems.label(target == null ? key : target.getScoreboardName(), ChatFormatting.WHITE)
+				: GuiItems.label(target == null ? key : target.getScoreboardName(), current),
 			Component.empty()
 				.append(GuiItems.label("Color: ", ChatFormatting.GRAY))
 				.append(current == null
@@ -80,8 +82,8 @@ public class PlayerGui extends SimpleGui {
 		set(SLOT_HEAD, head);
 
 		for (int i = 0; i < GlowPalette.ALL_COLORS.size(); i++) {
-			ChatFormatting color = GlowPalette.ALL_COLORS.get(i);
-			boolean inPalette = config.palette.contains(color.getName());
+			TeamColor color = GlowPalette.ALL_COLORS.get(i);
+			boolean inPalette = config.palette.contains(color.getSerializedName());
 			boolean selected = color == manual;
 
 			List<Component> lore = new ArrayList<>();
@@ -140,11 +142,11 @@ public class PlayerGui extends SimpleGui {
 			if (COLOR_SLOTS[i] != slot) {
 				continue;
 			}
-			ChatFormatting color = GlowPalette.ALL_COLORS.get(i);
-			if (color.getName().equals(config.playerColors.get(key))) {
+			TeamColor color = GlowPalette.ALL_COLORS.get(i);
+			if (color.getSerializedName().equals(config.playerColors.get(key))) {
 				config.playerColors.remove(key);
 			} else {
-				config.playerColors.put(key, color.getName());
+				config.playerColors.put(key, color.getSerializedName());
 			}
 			GlowPlayers.applyAndSave(player.level().getServer());
 			refresh();

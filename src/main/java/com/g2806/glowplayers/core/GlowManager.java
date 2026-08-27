@@ -6,6 +6,7 @@ import com.g2806.glowplayers.config.GlowConfig;
 import com.g2806.glowplayers.config.GlowPalette;
 import com.g2806.glowplayers.config.NotifyMode;
 import net.minecraft.ChatFormatting;
+import net.minecraft.world.scores.TeamColor;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -39,7 +40,7 @@ public final class GlowManager {
 	private final Random random = new Random();
 
 	/** Color currently shown for each online player. */
-	private final Map<UUID, ChatFormatting> active = new HashMap<>();
+	private final Map<UUID, TeamColor> active = new HashMap<>();
 	/** Players whose glowing effect was applied by this mod, so we only ever remove our own. */
 	private final Set<UUID> glowApplied = new HashSet<>();
 
@@ -49,7 +50,7 @@ public final class GlowManager {
 		this.configs = configs;
 	}
 
-	public ChatFormatting colorOf(UUID uuid) {
+	public TeamColor colorOf(UUID uuid) {
 		return active.get(uuid);
 	}
 
@@ -132,19 +133,19 @@ public final class GlowManager {
 		}
 
 		List<ServerPlayer> targets = players.stream().filter(player -> !isSkipped(player, config)).toList();
-		Map<UUID, ChatFormatting> assignment = assign(targets, config);
+		Map<UUID, TeamColor> assignment = assign(targets, config);
 
 		boolean persistDirty = false;
 		for (ServerPlayer player : players) {
-			ChatFormatting color = assignment.get(player.getUUID());
+			TeamColor color = assignment.get(player.getUUID());
 			if (color == null) {
 				clear(player);
 				continue;
 			}
 			apply(server, player, color, config);
 			if (config.persistColors && !config.playerColors.containsKey(player.getStringUUID())) {
-				String stored = config.assignedColors.put(player.getStringUUID(), color.getName());
-				persistDirty |= !color.getName().equals(stored);
+				String stored = config.assignedColors.put(player.getStringUUID(), color.getSerializedName());
+				persistDirty |= !color.getSerializedName().equals(stored);
 			}
 		}
 		if (persistDirty) {
@@ -152,15 +153,15 @@ public final class GlowManager {
 		}
 	}
 
-	private Map<UUID, ChatFormatting> assign(List<ServerPlayer> targets, GlowConfig config) {
-		List<ChatFormatting> palette = GlowPalette.resolve(config.palette);
-		Map<UUID, ChatFormatting> result = new LinkedHashMap<>();
-		Set<ChatFormatting> used = new HashSet<>();
+	private Map<UUID, TeamColor> assign(List<ServerPlayer> targets, GlowConfig config) {
+		List<TeamColor> palette = GlowPalette.resolve(config.palette);
+		Map<UUID, TeamColor> result = new LinkedHashMap<>();
+		Set<TeamColor> used = new HashSet<>();
 		List<ServerPlayer> pending = new ArrayList<>(targets);
 
 		// 1. Manual overrides always win, even when two players were given the same color.
 		pending.removeIf(player -> {
-			ChatFormatting color = GlowPalette.byName(config.playerColors.get(player.getStringUUID()));
+			TeamColor color = GlowPalette.byName(config.playerColors.get(player.getStringUUID()));
 			if (color == null) {
 				return false;
 			}
@@ -172,7 +173,7 @@ public final class GlowManager {
 		// 2. Reuse the color a player already had, so nobody's color shifts when someone leaves.
 		if (config.persistColors) {
 			pending.removeIf(player -> {
-				ChatFormatting color = GlowPalette.byName(config.assignedColors.get(player.getStringUUID()));
+				TeamColor color = GlowPalette.byName(config.assignedColors.get(player.getStringUUID()));
 				if (color == null || used.contains(color) || !palette.contains(color)) {
 					return false;
 				}
@@ -195,16 +196,16 @@ public final class GlowManager {
 				case NAME_HASH -> Math.floorMod(player.getGameProfile().name().hashCode(), palette.size());
 				case RANDOM -> random.nextInt(palette.size());
 			};
-			ChatFormatting color = firstFreeFrom(palette, preferred, used);
+			TeamColor color = firstFreeFrom(palette, preferred, used);
 			result.put(player.getUUID(), color);
 			used.add(color);
 		}
 		return result;
 	}
 
-	private static ChatFormatting firstFreeFrom(List<ChatFormatting> palette, int start, Set<ChatFormatting> used) {
+	private static TeamColor firstFreeFrom(List<TeamColor> palette, int start, Set<TeamColor> used) {
 		for (int offset = 0; offset < palette.size(); offset++) {
-			ChatFormatting candidate = palette.get((start + offset) % palette.size());
+			TeamColor candidate = palette.get((start + offset) % palette.size());
 			if (!used.contains(candidate)) {
 				return candidate;
 			}
@@ -223,7 +224,7 @@ public final class GlowManager {
 
 	// ---------------------------------------------------------------- applying
 
-	private void apply(MinecraftServer server, ServerPlayer player, ChatFormatting color, GlowConfig config) {
+	private void apply(MinecraftServer server, ServerPlayer player, TeamColor color, GlowConfig config) {
 		Scoreboard scoreboard = server.getScoreboard();
 		boolean wantsTeam = config.glowEffect || config.colorPlayerNames;
 
@@ -247,7 +248,7 @@ public final class GlowManager {
 
 		setWaypointColor(player, config.locatorBarColors ? GlowPalette.rgb(color) : null);
 
-		ChatFormatting previous = active.put(player.getUUID(), color);
+		TeamColor previous = active.put(player.getUUID(), color);
 		if (previous != color) {
 			notify(player, color, config);
 		}
@@ -270,13 +271,13 @@ public final class GlowManager {
 		}
 	}
 
-	private PlayerTeam teamFor(Scoreboard scoreboard, ChatFormatting color, GlowConfig config) {
-		String name = TEAM_PREFIX + color.getName();
+	private PlayerTeam teamFor(Scoreboard scoreboard, TeamColor color, GlowConfig config) {
+		String name = TEAM_PREFIX + color.getSerializedName();
 		PlayerTeam team = scoreboard.getPlayerTeam(name);
 		if (team == null) {
 			team = scoreboard.addPlayerTeam(name);
 		}
-		team.setColor(color);
+		team.setColor(Optional.of(color));
 		team.setDisplayName(Component.literal(GlowPalette.displayName(color)));
 		team.setSeeFriendlyInvisibles(config.seeFriendlyInvisibles);
 		team.setAllowFriendlyFire(true);
@@ -344,14 +345,14 @@ public final class GlowManager {
 		}
 	}
 
-	private void notify(ServerPlayer player, ChatFormatting color, GlowConfig config) {
+	private void notify(ServerPlayer player, TeamColor color, GlowConfig config) {
 		NotifyMode mode = config.notifyMode();
 		if (mode == NotifyMode.OFF) {
 			return;
 		}
 		Component message = Component.empty()
 			.append(Component.literal("Glow color: ").withStyle(ChatFormatting.GRAY))
-			.append(Component.literal(GlowPalette.displayName(color)).withStyle(color));
+			.append(Component.literal(GlowPalette.displayName(color)).withColor(color.textColor()));
 		player.sendSystemMessage(message, mode == NotifyMode.ACTION_BAR);
 	}
 }

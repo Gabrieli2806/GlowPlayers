@@ -1,8 +1,9 @@
 package com.g2806.glowplayers.config;
 
-import net.minecraft.ChatFormatting;
+import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.scores.TeamColor;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -11,72 +12,72 @@ import java.util.Map;
 
 /** The 16 usable glow colors, their GUI icon and their display name. */
 public final class GlowPalette {
-	/** Every color Minecraft can use for a team, ordered for maximum visual distinction. */
-	public static final List<ChatFormatting> ALL_COLORS = List.of(
-		ChatFormatting.WHITE,
-		ChatFormatting.BLUE,
-		ChatFormatting.RED,
-		ChatFormatting.GREEN,
-		ChatFormatting.YELLOW,
-		ChatFormatting.AQUA,
-		ChatFormatting.LIGHT_PURPLE,
-		ChatFormatting.GOLD,
-		ChatFormatting.DARK_PURPLE,
-		ChatFormatting.DARK_AQUA,
-		ChatFormatting.DARK_GREEN,
-		ChatFormatting.DARK_RED,
-		ChatFormatting.DARK_BLUE,
-		ChatFormatting.GRAY,
-		ChatFormatting.DARK_GRAY,
-		ChatFormatting.BLACK
+	/** Every color a team can use, ordered for maximum visual distinction. */
+	public static final List<TeamColor> ALL_COLORS = List.of(
+		TeamColor.WHITE,
+		TeamColor.BLUE,
+		TeamColor.RED,
+		TeamColor.GREEN,
+		TeamColor.YELLOW,
+		TeamColor.AQUA,
+		TeamColor.LIGHT_PURPLE,
+		TeamColor.GOLD,
+		TeamColor.DARK_PURPLE,
+		TeamColor.DARK_AQUA,
+		TeamColor.DARK_GREEN,
+		TeamColor.DARK_RED,
+		TeamColor.DARK_BLUE,
+		TeamColor.GRAY,
+		TeamColor.DARK_GRAY,
+		TeamColor.BLACK
 	);
 
-	public static final List<String> DEFAULT_PALETTE = ALL_COLORS.stream().map(ChatFormatting::getName).toList();
+	public static final List<String> DEFAULT_PALETTE = ALL_COLORS.stream().map(TeamColor::getSerializedName).toList();
 
-	private static final Map<ChatFormatting, Item> ICONS = new LinkedHashMap<>();
+	private static final Map<TeamColor, DyeColor> ICON_DYES = new LinkedHashMap<>();
 
 	static {
-		ICONS.put(ChatFormatting.WHITE, Items.WHITE_WOOL);
-		ICONS.put(ChatFormatting.BLUE, Items.LIGHT_BLUE_WOOL);
-		ICONS.put(ChatFormatting.RED, Items.RED_WOOL);
-		ICONS.put(ChatFormatting.GREEN, Items.LIME_WOOL);
-		ICONS.put(ChatFormatting.YELLOW, Items.YELLOW_WOOL);
-		ICONS.put(ChatFormatting.AQUA, Items.CYAN_WOOL);
-		ICONS.put(ChatFormatting.LIGHT_PURPLE, Items.MAGENTA_WOOL);
-		ICONS.put(ChatFormatting.GOLD, Items.ORANGE_WOOL);
-		ICONS.put(ChatFormatting.DARK_PURPLE, Items.PURPLE_WOOL);
-		ICONS.put(ChatFormatting.DARK_AQUA, Items.CYAN_WOOL);
-		ICONS.put(ChatFormatting.DARK_GREEN, Items.GREEN_WOOL);
-		ICONS.put(ChatFormatting.DARK_RED, Items.RED_WOOL);
-		ICONS.put(ChatFormatting.DARK_BLUE, Items.BLUE_WOOL);
-		ICONS.put(ChatFormatting.GRAY, Items.LIGHT_GRAY_WOOL);
-		ICONS.put(ChatFormatting.DARK_GRAY, Items.GRAY_WOOL);
-		ICONS.put(ChatFormatting.BLACK, Items.BLACK_WOOL);
+		ICON_DYES.put(TeamColor.WHITE, DyeColor.WHITE);
+		ICON_DYES.put(TeamColor.BLUE, DyeColor.LIGHT_BLUE);
+		ICON_DYES.put(TeamColor.RED, DyeColor.RED);
+		ICON_DYES.put(TeamColor.GREEN, DyeColor.LIME);
+		ICON_DYES.put(TeamColor.YELLOW, DyeColor.YELLOW);
+		ICON_DYES.put(TeamColor.AQUA, DyeColor.CYAN);
+		ICON_DYES.put(TeamColor.LIGHT_PURPLE, DyeColor.MAGENTA);
+		ICON_DYES.put(TeamColor.GOLD, DyeColor.ORANGE);
+		ICON_DYES.put(TeamColor.DARK_PURPLE, DyeColor.PURPLE);
+		ICON_DYES.put(TeamColor.DARK_AQUA, DyeColor.CYAN);
+		ICON_DYES.put(TeamColor.DARK_GREEN, DyeColor.GREEN);
+		ICON_DYES.put(TeamColor.DARK_RED, DyeColor.RED);
+		ICON_DYES.put(TeamColor.DARK_BLUE, DyeColor.BLUE);
+		ICON_DYES.put(TeamColor.GRAY, DyeColor.LIGHT_GRAY);
+		ICON_DYES.put(TeamColor.DARK_GRAY, DyeColor.GRAY);
+		ICON_DYES.put(TeamColor.BLACK, DyeColor.BLACK);
 	}
 
 	private GlowPalette() {
 	}
 
-	public static ChatFormatting byName(String name) {
+	public static TeamColor byName(String name) {
 		if (name == null) {
 			return null;
 		}
-		for (ChatFormatting color : ALL_COLORS) {
-			if (color.getName().equalsIgnoreCase(name)) {
+		for (TeamColor color : ALL_COLORS) {
+			if (color.getSerializedName().equalsIgnoreCase(name)) {
 				return color;
 			}
 		}
 		return null;
 	}
 
-	public static Item icon(ChatFormatting color) {
-		return ICONS.getOrDefault(color, Items.WHITE_WOOL);
+	public static Item icon(TeamColor color) {
+		return Items.WOOL.pick(ICON_DYES.getOrDefault(color, DyeColor.WHITE));
 	}
 
 	/** "dark_aqua" -> "Dark Aqua". */
-	public static String displayName(ChatFormatting color) {
+	public static String displayName(TeamColor color) {
 		StringBuilder sb = new StringBuilder();
-		for (String part : color.getName().split("_")) {
+		for (String part : color.getSerializedName().split("_")) {
 			if (sb.length() > 0) {
 				sb.append(' ');
 			}
@@ -86,16 +87,15 @@ public final class GlowPalette {
 	}
 
 	/** RGB value the Locator Bar should use; black would be invisible so it is nudged like vanilla does. */
-	public static int rgb(ChatFormatting color) {
-		Integer value = color.getColor();
-		int rgb = value == null ? 0xFFFFFF : value;
+	public static int rgb(TeamColor color) {
+		int rgb = color.rgb();
 		return rgb == 0 ? 0x2F2F30 : rgb;
 	}
 
-	public static List<ChatFormatting> resolve(List<String> names) {
-		List<ChatFormatting> colors = new ArrayList<>();
+	public static List<TeamColor> resolve(List<String> names) {
+		List<TeamColor> colors = new ArrayList<>();
 		for (String name : names) {
-			ChatFormatting color = byName(name);
+			TeamColor color = byName(name);
 			if (color != null && !colors.contains(color)) {
 				colors.add(color);
 			}

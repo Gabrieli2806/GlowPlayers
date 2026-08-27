@@ -8,9 +8,10 @@ import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.tree.LiteralCommandNode;
 import net.minecraft.ChatFormatting;
+import net.minecraft.world.scores.TeamColor;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
-import net.minecraft.commands.arguments.ColorArgument;
+import net.minecraft.commands.arguments.TeamColorArgument;
 import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
@@ -42,18 +43,18 @@ public final class GlowCommand {
 			.then(Commands.literal("refresh")
 				.executes(context -> refresh(context.getSource())))
 			.then(Commands.literal("color")
-				.then(Commands.argument("color", ColorArgument.color())
-					.executes(context -> setOwnColor(context.getSource(), ColorArgument.getColor(context, "color")))))
+				.then(Commands.argument("color", TeamColorArgument.teamColor())
+					.executes(context -> setOwnColor(context.getSource(), TeamColorArgument.getTeamColor(context, "color")))))
 			.then(Commands.literal("auto")
 				.executes(context -> clearOwnColor(context.getSource())))
 			.then(Commands.literal("toggle")
 				.executes(context -> toggleSelf(context.getSource())))
 			.then(Commands.literal("set")
 				.then(Commands.argument("target", EntityArgument.player())
-					.then(Commands.argument("color", ColorArgument.color())
+					.then(Commands.argument("color", TeamColorArgument.teamColor())
 						.executes(context -> setColor(context.getSource(),
 							EntityArgument.getPlayer(context, "target"),
-							ColorArgument.getColor(context, "color"))))))
+							TeamColorArgument.getTeamColor(context, "color"))))))
 			.then(Commands.literal("exclude")
 				.then(Commands.argument("target", EntityArgument.player())
 					.executes(context -> toggleExclude(context.getSource(),
@@ -98,12 +99,12 @@ public final class GlowCommand {
 
 		ServerPlayer player = source.getPlayer();
 		if (player != null) {
-			ChatFormatting color = GlowPlayers.manager().colorOf(player.getUUID());
+			TeamColor color = GlowPlayers.manager().colorOf(player.getUUID());
 			source.sendSuccess(() -> Component.empty()
 				.append(Component.literal("Your color: ").withStyle(ChatFormatting.GRAY))
 				.append(color == null
 					? Component.literal("none").withStyle(ChatFormatting.DARK_GRAY)
-					: Component.literal(GlowPalette.displayName(color)).withStyle(color)), false);
+					: Component.literal(GlowPalette.displayName(color)).withColor(color.textColor())), false);
 		}
 		return 1;
 	}
@@ -127,7 +128,7 @@ public final class GlowCommand {
 		return 1;
 	}
 
-	private static int setOwnColor(CommandSourceStack source, ChatFormatting color) {
+	private static int setOwnColor(CommandSourceStack source, TeamColor color) {
 		ServerPlayer player = source.getPlayer();
 		if (player == null) {
 			source.sendFailure(Component.literal("Only a player can run this."));
@@ -156,19 +157,19 @@ public final class GlowCommand {
 		return 1;
 	}
 
-	private static int setColor(CommandSourceStack source, ServerPlayer target, ChatFormatting color) {
+	private static int setColor(CommandSourceStack source, ServerPlayer target, TeamColor color) {
 		if (source.getPlayer() != target && denyNonAdmin(source)) {
 			return 0;
 		}
-		if (GlowPalette.byName(color.getName()) == null) {
-			source.sendFailure(Component.literal(color.getName() + " is not a usable glow color."));
+		if (GlowPalette.byName(color.getSerializedName()) == null) {
+			source.sendFailure(Component.literal(color.getSerializedName() + " is not a usable glow color."));
 			return 0;
 		}
-		GlowPlayers.configs().get().playerColors.put(target.getStringUUID(), color.getName());
+		GlowPlayers.configs().get().playerColors.put(target.getStringUUID(), color.getSerializedName());
 		GlowPlayers.applyAndSave(source.getServer());
 		source.sendSuccess(() -> Component.empty()
 			.append(Component.literal(target.getScoreboardName() + " is now ").withStyle(ChatFormatting.GRAY))
-			.append(Component.literal(GlowPalette.displayName(color)).withStyle(color)), false);
+			.append(Component.literal(GlowPalette.displayName(color)).withColor(color.textColor())), false);
 		return 1;
 	}
 

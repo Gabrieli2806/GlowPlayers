@@ -4,6 +4,7 @@ import com.g2806.glowplayers.GlowPlayers;
 import com.g2806.glowplayers.config.GlowConfig;
 import com.g2806.glowplayers.config.GlowPalette;
 import net.minecraft.ChatFormatting;
+import net.minecraft.world.scores.TeamColor;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
@@ -70,7 +71,7 @@ public class PlayersGui extends SimpleGui {
 	}
 
 	private ItemStack head(ServerPlayer target, GlowConfig config) {
-		ChatFormatting color = GlowPlayers.manager().colorOf(target.getUUID());
+		TeamColor color = GlowPlayers.manager().colorOf(target.getUUID());
 		boolean excluded = config.excludedPlayers.contains(target.getStringUUID());
 		boolean manual = config.playerColors.containsKey(target.getStringUUID());
 
@@ -90,7 +91,9 @@ public class PlayersGui extends SimpleGui {
 		lore.add(GuiItems.label("Click to edit", ChatFormatting.DARK_GRAY));
 
 		ItemStack stack = GuiItems.of(Items.PLAYER_HEAD,
-			GuiItems.label(target.getScoreboardName(), color == null ? ChatFormatting.WHITE : color), lore);
+			color == null
+				? GuiItems.label(target.getScoreboardName(), ChatFormatting.WHITE)
+				: GuiItems.label(target.getScoreboardName(), color), lore);
 		stack.set(DataComponents.PROFILE, ResolvableProfile.createResolved(target.getGameProfile()));
 		return stack;
 	}

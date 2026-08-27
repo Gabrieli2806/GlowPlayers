@@ -7,7 +7,9 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.component.ItemLore;
+import net.minecraft.world.scores.TeamColor;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -15,7 +17,7 @@ import java.util.List;
 
 /** Small helpers to build the display-only items the menus are made of. */
 public final class GuiItems {
-	public static final ItemStack FILLER = plain(Items.GRAY_STAINED_GLASS_PANE, Component.empty());
+	public static final ItemStack FILLER = plain(Items.STAINED_GLASS_PANE.pick(DyeColor.GRAY), Component.empty());
 
 	private GuiItems() {
 	}
@@ -23,6 +25,11 @@ public final class GuiItems {
 	/** Item names and lore render italic by default in a GUI; this turns that off. */
 	public static MutableComponent label(String text, ChatFormatting... styles) {
 		return Component.literal(text).withStyle(style -> style.withItalic(false)).withStyle(styles);
+	}
+
+	/** Same as {@link #label(String, ChatFormatting...)} but tinted with a team color. */
+	public static MutableComponent label(String text, TeamColor color) {
+		return Component.literal(text).withStyle(style -> style.withItalic(false)).withColor(color.textColor());
 	}
 
 	public static ItemStack plain(Item item, Component name) {
@@ -53,7 +60,7 @@ public final class GuiItems {
 			.append(label("State: ", ChatFormatting.GRAY))
 			.append(label(on ? "ON" : "OFF", on ? ChatFormatting.GREEN : ChatFormatting.RED)));
 		lore.add(label("Click to toggle", ChatFormatting.DARK_GRAY));
-		return of(on ? Items.LIME_DYE : Items.GRAY_DYE,
+		return of(on ? Items.DYE.pick(DyeColor.LIME) : Items.DYE.pick(DyeColor.GRAY),
 			label(title, on ? ChatFormatting.GREEN : ChatFormatting.RED),
 			lore);
 	}
