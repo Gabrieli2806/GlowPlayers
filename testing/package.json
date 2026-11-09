@@ -1,0 +1,12 @@
+{
+  "name": "glowplayers-testing",
+  "private": true,
+  "description": "Mineflayer bots that join the dev server to test GlowPlayers in game.",
+  "scripts": {
+    "test": "node test.js",
+    "bots": "node bots.js"
+  },
+  "dependencies": {
+    "mineflayer": "4.39.0"
+  }
+}

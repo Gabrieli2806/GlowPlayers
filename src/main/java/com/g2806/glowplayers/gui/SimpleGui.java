@@ -1,6 +1,7 @@
 package com.g2806.glowplayers.gui;
 
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.SimpleContainer;
@@ -65,6 +66,21 @@ public abstract class SimpleGui implements MenuProvider {
 				container.setItem(slot, filler.copy());
 			}
 		}
+	}
+
+	/** Black bars on the top and bottom rows, gray everywhere else that is still empty. */
+	protected void frame() {
+		int size = container.getContainerSize();
+		for (int slot = 0; slot < size; slot++) {
+			if (container.getItem(slot).isEmpty()) {
+				boolean edge = slot < 9 || slot >= size - 9;
+				container.setItem(slot, (edge ? GuiItems.BORDER : GuiItems.FILLER).copy());
+			}
+		}
+	}
+
+	protected MinecraftServer server() {
+		return player.level().getServer();
 	}
 
 	protected void clearSlots() {

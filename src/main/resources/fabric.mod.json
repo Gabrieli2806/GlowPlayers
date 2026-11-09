@@ -3,7 +3,7 @@
 	"id": "glowplayers",
 	"version": "${version}",
 	"name": "GlowPlayers",
-	"description": "Server-side mod: every player glows in their own color and the Locator Bar waypoint matches. Configurable in game through a chest GUI.",
+	"description": "Server-side mod that gives every player their own glow and Locator Bar color, managed from an in-game chest menu.",
 	"authors": [
 		"Gabrieli2806"
 	],

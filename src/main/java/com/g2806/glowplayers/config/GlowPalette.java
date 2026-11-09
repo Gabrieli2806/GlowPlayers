@@ -12,21 +12,25 @@ import java.util.Map;
 
 /** The 16 usable glow colors, their GUI icon and their display name. */
 public final class GlowPalette {
-	/** Every color a team can use, ordered for maximum visual distinction. */
+	/**
+	 * Every color a team can use, in "player 1, player 2, ..." order: the bright, easy to tell
+	 * apart colors first (in the spirit of Legacy Console Edition's player colors), then the dark
+	 * variants, and the hard to see grays and black last.
+	 */
 	public static final List<TeamColor> ALL_COLORS = List.of(
-		TeamColor.WHITE,
-		TeamColor.BLUE,
-		TeamColor.RED,
 		TeamColor.GREEN,
+		TeamColor.RED,
+		TeamColor.BLUE,
 		TeamColor.YELLOW,
-		TeamColor.AQUA,
 		TeamColor.LIGHT_PURPLE,
+		TeamColor.AQUA,
 		TeamColor.GOLD,
-		TeamColor.DARK_PURPLE,
-		TeamColor.DARK_AQUA,
+		TeamColor.WHITE,
 		TeamColor.DARK_GREEN,
 		TeamColor.DARK_RED,
 		TeamColor.DARK_BLUE,
+		TeamColor.DARK_PURPLE,
+		TeamColor.DARK_AQUA,
 		TeamColor.GRAY,
 		TeamColor.DARK_GRAY,
 		TeamColor.BLACK

@@ -1,24 +1,24 @@
 package com.g2806.glowplayers.gui;
 
 import com.g2806.glowplayers.GlowPlayers;
+import com.g2806.glowplayers.config.ColorMode;
 import com.g2806.glowplayers.config.GlowConfig;
 import com.g2806.glowplayers.config.GlowPalette;
 import net.minecraft.ChatFormatting;
-import net.minecraft.world.scores.TeamColor;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.component.ResolvableProfile;
+import net.minecraft.world.scores.TeamColor;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
-/** Per-player screen: force a color, hand it back to the automatic mode, or exclude the player. */
+/**
+ * Per-player screen: pick a color (swapping with whoever had it), add or remove the player
+ * from the fixed group, or exclude them.
+ */
 public class PlayerGui extends SimpleGui {
 	private static final int[] COLOR_SLOTS = {
 		19, 20, 21, 22, 23, 24, 25, 26,
@@ -27,29 +27,32 @@ public class PlayerGui extends SimpleGui {
 
 	private static final int SLOT_HEAD = 4;
 	private static final int SLOT_BACK = 45;
-	private static final int SLOT_AUTOMATIC = 48;
+	private static final int SLOT_GROUP = 48;
 	private static final int SLOT_EXCLUDE = 50;
 	private static final int SLOT_CLOSE = 53;
 
-	private final UUID targetId;
+	private final PlayersGui.Entry target;
 	private final int returnPage;
+	private final List<TeamColor> shown = new ArrayList<>();
 
-	public PlayerGui(ServerPlayer player, UUID targetId, int returnPage) {
+	public PlayerGui(ServerPlayer player, PlayersGui.Entry target, int returnPage) {
 		super(player, 6);
-		this.targetId = targetId;
+		this.target = target;
 		this.returnPage = returnPage;
 	}
 
 	@Override
 	public Component getDisplayName() {
-		ServerPlayer target = target();
-		String name = target == null ? "Player" : target.getScoreboardName();
-		return GuiItems.label("GlowPlayers · " + name, ChatFormatting.DARK_AQUA);
+		return GuiItems.label("GlowPlayers · " + PlayersGui.displayName(target), ChatFormatting.DARK_AQUA);
 	}
 
-	private ServerPlayer target() {
-		MinecraftServer server = player.level().getServer();
-		return server == null ? null : server.getPlayerList().getPlayer(targetId);
+	private String key() {
+		return target.uuid().toString();
+	}
+
+	/** In join order mode only online players hold a color. */
+	private boolean canPickColor(GlowConfig config) {
+		return config.mode() == ColorMode.FIXED || server().getPlayerList().getPlayer(target.uuid()) != null;
 	}
 
 	@Override
@@ -57,98 +60,131 @@ public class PlayerGui extends SimpleGui {
 		GlowConfig config = GlowPlayers.configs().get();
 		clearSlots();
 
-		ServerPlayer target = target();
-		String key = targetId.toString();
-		String manualName = config.playerColors.get(key);
-		TeamColor manual = GlowPalette.byName(manualName);
-		TeamColor current = GlowPlayers.manager().colorOf(targetId);
-		boolean excluded = config.excludedPlayers.contains(key);
+		TeamColor current = PlayersGui.colorOf(target, config);
+		boolean excluded = config.excludedPlayers.containsKey(key());
+		boolean member = config.members.containsKey(key());
+		boolean fixed = config.mode() == ColorMode.FIXED;
+		boolean online = server().getPlayerList().getPlayer(target.uuid()) != null;
 
-		ItemStack head = GuiItems.of(Items.PLAYER_HEAD,
-			current == null
-				? GuiItems.label(target == null ? key : target.getScoreboardName(), ChatFormatting.WHITE)
-				: GuiItems.label(target == null ? key : target.getScoreboardName(), current),
-			Component.empty()
-				.append(GuiItems.label("Color: ", ChatFormatting.GRAY))
-				.append(current == null
-					? GuiItems.label("none", ChatFormatting.DARK_GRAY)
-					: GuiItems.label(GlowPalette.displayName(current), current)),
-			Component.empty()
-				.append(GuiItems.label("Source: ", ChatFormatting.GRAY))
-				.append(GuiItems.label(manual != null ? "manual" : "automatic", ChatFormatting.WHITE)));
-		if (target != null) {
-			head.set(DataComponents.PROFILE, ResolvableProfile.createResolved(target.getGameProfile()));
+		List<Component> headLore = new ArrayList<>();
+		headLore.add(GuiItems.field("Status", online
+			? GuiItems.label("Online", ChatFormatting.GREEN)
+			: GuiItems.label("Offline", ChatFormatting.DARK_GRAY)));
+		headLore.add(GuiItems.field("Color", current == null
+			? GuiItems.label("none", ChatFormatting.DARK_GRAY)
+			: GuiItems.label(GlowPalette.displayName(current), current)));
+		if (fixed) {
+			headLore.add(GuiItems.field("In group", member ? GuiItems.label("yes", ChatFormatting.GREEN)
+				: GuiItems.label("no", ChatFormatting.RED)));
 		}
-		set(SLOT_HEAD, head);
+		String conflict = GlowPlayers.manager().conflictOf(target.uuid());
+		if (conflict != null) {
+			headLore.add(GuiItems.label("On foreign team \"" + conflict + "\"", ChatFormatting.YELLOW));
+		}
+		headLore.add(GuiItems.label(target.uuid().toString(), ChatFormatting.DARK_GRAY));
+		set(SLOT_HEAD, GuiItems.head(target.uuid(), target.name(),
+			current == null ? GuiItems.label(PlayersGui.displayName(target), ChatFormatting.WHITE)
+				: GuiItems.label(PlayersGui.displayName(target), current),
+			headLore));
 
-		for (int i = 0; i < GlowPalette.ALL_COLORS.size(); i++) {
-			TeamColor color = GlowPalette.ALL_COLORS.get(i);
-			boolean inPalette = config.palette.contains(color.getSerializedName());
-			boolean selected = color == manual;
+		shown.clear();
+		shown.addAll(GlowPalette.resolve(config.palette));
+		for (TeamColor color : GlowPalette.ALL_COLORS) {
+			if (!shown.contains(color)) {
+				shown.add(color);
+			}
+		}
+		boolean canPick = canPickColor(config);
+		for (int i = 0; i < shown.size(); i++) {
+			TeamColor color = shown.get(i);
+			boolean selected = color == current;
+			String owner = GlowPlayers.manager().ownerOf(server(), color, target.uuid());
 
 			List<Component> lore = new ArrayList<>();
 			if (selected) {
-				lore.add(GuiItems.label("Selected", ChatFormatting.GREEN));
+				lore.add(GuiItems.label("Current color", ChatFormatting.GREEN));
 			}
-			if (!inPalette) {
+			if (owner != null) {
+				lore.add(GuiItems.field("Taken by", owner.isEmpty() ? "an offline member" : owner));
+			}
+			if (!config.palette.contains(color.getSerializedName())) {
 				lore.add(GuiItems.label("Not in the palette", ChatFormatting.DARK_GRAY));
 			}
-			lore.add(GuiItems.label("Click to force this color", ChatFormatting.DARK_GRAY));
+			lore.add(Component.empty());
+			lore.add(GuiItems.hint(!canPick ? "Player is offline"
+				: owner != null ? "Click to swap colors with " + (owner.isEmpty() ? "them" : owner)
+				: "Click to use this color"));
 
-			set(COLOR_SLOTS[i], GuiItems.of(GlowPalette.icon(color),
-				GuiItems.label((selected ? "> " : "") + GlowPalette.displayName(color), color), lore));
+			ItemStack stack = GuiItems.colorIcon(color,
+				GuiItems.label((selected ? "▶ " : "") + GlowPalette.displayName(color), color), lore);
+			set(COLOR_SLOTS[i], GuiItems.glint(stack, selected));
 		}
 
-		set(SLOT_AUTOMATIC, GuiItems.of(Items.COMPASS,
-			GuiItems.label("Automatic color", ChatFormatting.AQUA),
-			GuiItems.label("Drop the manual color and use the mode", ChatFormatting.GRAY)));
-		set(SLOT_EXCLUDE, GuiItems.toggle("Excluded", excluded,
-			"Skip this player entirely"));
+		if (fixed) {
+			set(SLOT_GROUP, member
+				? GuiItems.of(Items.ENDER_CHEST,
+					GuiItems.label("Remove from group", ChatFormatting.RED),
+					GuiItems.label("Frees their color for someone else.", ChatFormatting.GRAY),
+					GuiItems.label(config.autoAddMembers
+						? "Auto-add is on: they rejoin the group with a new color."
+						: "Auto-add is off: they stop glowing.", ChatFormatting.GRAY))
+				: GuiItems.of(Items.ENDER_CHEST,
+					GuiItems.label("Add to group", ChatFormatting.GREEN),
+					GuiItems.label("Reserves the next free color for them.", ChatFormatting.GRAY)));
+		} else {
+			set(SLOT_GROUP, GuiItems.of(Items.CLOCK,
+				GuiItems.label("Reset to join order", ChatFormatting.AQUA),
+				GuiItems.label("Gives them the lowest free color.", ChatFormatting.GRAY)));
+		}
+		set(SLOT_EXCLUDE, GuiItems.feature(Items.BARRIER, "Excluded", excluded,
+			"Skip this player entirely:", "no glow, team or Locator Bar color."));
 		set(SLOT_BACK, GuiItems.back());
 		set(SLOT_CLOSE, GuiItems.close());
-		fillEmpty(GuiItems.FILLER);
+		frame();
 	}
 
 	@Override
 	protected void onClick(int slot, ContainerInput input, int button) {
 		GlowConfig config = GlowPlayers.configs().get();
-		String key = targetId.toString();
 
-		if (slot == SLOT_BACK) {
-			new PlayersGui(player, returnPage).open();
-			return;
-		}
-		if (slot == SLOT_CLOSE) {
-			player.closeContainer();
-			return;
-		}
-		if (slot == SLOT_AUTOMATIC) {
-			config.playerColors.remove(key);
-			config.assignedColors.remove(key);
-			GlowPlayers.applyAndSave(player.level().getServer());
-			refresh();
-			return;
-		}
-		if (slot == SLOT_EXCLUDE) {
-			if (!config.excludedPlayers.remove(key)) {
-				config.excludedPlayers.add(key);
+		switch (slot) {
+			case SLOT_BACK -> {
+				new PlayersGui(player, returnPage).open();
+				return;
 			}
-			GlowPlayers.applyAndSave(player.level().getServer());
-			refresh();
-			return;
+			case SLOT_CLOSE -> {
+				player.closeContainer();
+				return;
+			}
+			case SLOT_GROUP -> {
+				if (config.mode() == ColorMode.FIXED && !config.members.containsKey(key())) {
+					GlowPlayers.manager().addMember(server(), target.uuid(), target.name());
+				} else {
+					GlowPlayers.manager().resetColor(server(), target.uuid());
+				}
+				refresh();
+				return;
+			}
+			case SLOT_EXCLUDE -> {
+				if (config.excludedPlayers.remove(key()) == null) {
+					config.excludedPlayers.put(key(), target.name());
+				}
+				GlowPlayers.applyAndSave(server());
+				refresh();
+				return;
+			}
+			default -> {
+			}
 		}
 
 		for (int i = 0; i < COLOR_SLOTS.length; i++) {
-			if (COLOR_SLOTS[i] != slot) {
+			if (COLOR_SLOTS[i] != slot || i >= shown.size()) {
 				continue;
 			}
-			TeamColor color = GlowPalette.ALL_COLORS.get(i);
-			if (color.getSerializedName().equals(config.playerColors.get(key))) {
-				config.playerColors.remove(key);
-			} else {
-				config.playerColors.put(key, color.getSerializedName());
+			if (!canPickColor(config)) {
+				return;
 			}
-			GlowPlayers.applyAndSave(player.level().getServer());
+			GlowPlayers.manager().setColor(server(), target.uuid(), target.name(), shown.get(i));
 			refresh();
 			return;
 		}

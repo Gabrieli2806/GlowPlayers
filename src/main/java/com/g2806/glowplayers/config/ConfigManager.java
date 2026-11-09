@@ -3,6 +3,9 @@ package com.g2806.glowplayers.config;
 import com.g2806.glowplayers.GlowPlayers;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.io.IOException;
@@ -32,14 +35,23 @@ public final class ConfigManager {
 			save();
 			return;
 		}
+		boolean migrated = false;
 		try (Reader reader = Files.newBufferedReader(path)) {
-			GlowConfig loaded = GSON.fromJson(reader, GlowConfig.class);
+			JsonElement json = JsonParser.parseReader(reader);
+			if (json instanceof JsonObject object) {
+				migrated = ConfigMigration.migrate(object);
+			}
+			GlowConfig loaded = GSON.fromJson(json, GlowConfig.class);
 			config = loaded == null ? new GlowConfig() : loaded;
 		} catch (Exception e) {
 			GlowPlayers.LOGGER.error("Could not read {} — falling back to defaults", path, e);
 			config = new GlowConfig();
 		}
 		config.sanitize();
+		if (migrated) {
+			GlowPlayers.LOGGER.info("Upgraded {} to config version {}", path, GlowConfig.CURRENT_VERSION);
+			save();
+		}
 	}
 
 	public void save() {

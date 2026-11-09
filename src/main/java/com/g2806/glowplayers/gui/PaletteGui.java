@@ -4,16 +4,20 @@ import com.g2806.glowplayers.GlowPlayers;
 import com.g2806.glowplayers.config.GlowConfig;
 import com.g2806.glowplayers.config.GlowPalette;
 import net.minecraft.ChatFormatting;
-import net.minecraft.world.scores.TeamColor;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.inventory.ContainerInput;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.scores.TeamColor;
 
 import java.util.ArrayList;
 import java.util.List;
 
-/** Turns the 16 available colors on or off, and reorders them. */
+/**
+ * Turns colors on or off and orders them. Active colors come first, in hand-out order, with
+ * their position as the stack size; disabled ones follow.
+ */
 public class PaletteGui extends SimpleGui {
 	/** Two centered rows of eight, one slot per color. */
 	private static final int[] COLOR_SLOTS = {
@@ -21,9 +25,12 @@ public class PaletteGui extends SimpleGui {
 		19, 20, 21, 22, 23, 24, 25, 26
 	};
 
+	private static final int SLOT_HELP = 4;
 	private static final int SLOT_BACK = 45;
 	private static final int SLOT_RESET = 49;
 	private static final int SLOT_CLOSE = 53;
+
+	private final List<TeamColor> shown = new ArrayList<>();
 
 	public PaletteGui(ServerPlayer player) {
 		super(player, 6);
@@ -39,34 +46,48 @@ public class PaletteGui extends SimpleGui {
 		GlowConfig config = GlowPlayers.configs().get();
 		clearSlots();
 
-		for (int i = 0; i < GlowPalette.ALL_COLORS.size(); i++) {
-			TeamColor color = GlowPalette.ALL_COLORS.get(i);
+		shown.clear();
+		shown.addAll(GlowPalette.resolve(config.palette));
+		for (TeamColor color : GlowPalette.ALL_COLORS) {
+			if (!shown.contains(color)) {
+				shown.add(color);
+			}
+		}
+
+		set(SLOT_HELP, GuiItems.of(Items.BOOK,
+			GuiItems.label("Palette", ChatFormatting.BOLD, ChatFormatting.LIGHT_PURPLE),
+			GuiItems.label("The 1st color goes to the 1st player,", ChatFormatting.GRAY),
+			GuiItems.label("the 2nd to the 2nd, and so on.", ChatFormatting.GRAY),
+			Component.empty(),
+			GuiItems.hint("Left click: turn a color on/off"),
+			GuiItems.hint("Right click: move it one place earlier"),
+			GuiItems.hint("Shift + click: move it first")));
+
+		for (int i = 0; i < shown.size(); i++) {
+			TeamColor color = shown.get(i);
 			int position = config.palette.indexOf(color.getSerializedName());
 			boolean active = position >= 0;
 
 			List<Component> lore = new ArrayList<>();
-			lore.add(Component.empty()
-				.append(GuiItems.label("In palette: ", ChatFormatting.GRAY))
-				.append(GuiItems.label(active ? "YES" : "NO", active ? ChatFormatting.GREEN : ChatFormatting.RED)));
+			lore.add(GuiItems.field("In palette", GuiItems.onOff(active)));
 			if (active) {
-				lore.add(Component.empty()
-					.append(GuiItems.label("Position: ", ChatFormatting.GRAY))
-					.append(GuiItems.label("#" + (position + 1), ChatFormatting.WHITE)));
+				lore.add(GuiItems.field("Position", "#" + (position + 1)));
 			}
-			lore.add(Component.empty());
-			lore.add(GuiItems.label("Left click to toggle", ChatFormatting.DARK_GRAY));
-			lore.add(GuiItems.label("Right click to move it first", ChatFormatting.DARK_GRAY));
-
-			set(COLOR_SLOTS[i], GuiItems.of(GlowPalette.icon(color),
-				GuiItems.label(GlowPalette.displayName(color), color), lore));
+			ItemStack stack = GuiItems.colorIcon(color,
+				active
+					? GuiItems.label(GlowPalette.displayName(color), color)
+					: GuiItems.label(GlowPalette.displayName(color) + " (off)", ChatFormatting.DARK_GRAY),
+				lore);
+			stack.setCount(active ? position + 1 : 1);
+			set(COLOR_SLOTS[i], GuiItems.glint(stack, active));
 		}
 
 		set(SLOT_BACK, GuiItems.back());
 		set(SLOT_RESET, GuiItems.of(Items.TNT,
 			GuiItems.label("Reset palette", ChatFormatting.RED),
-			GuiItems.label("Back to all 16 colors in default order", ChatFormatting.GRAY)));
+			GuiItems.label("All 16 colors in the default order", ChatFormatting.GRAY)));
 		set(SLOT_CLOSE, GuiItems.close());
-		fillEmpty(GuiItems.FILLER);
+		frame();
 	}
 
 	@Override
@@ -83,26 +104,34 @@ public class PaletteGui extends SimpleGui {
 		}
 		if (slot == SLOT_RESET) {
 			config.palette = new ArrayList<>(GlowPalette.DEFAULT_PALETTE);
-			GlowPlayers.applyAndSave(player.level().getServer());
+			GlowPlayers.applyAndSave(server());
 			refresh();
 			return;
 		}
 
 		for (int i = 0; i < COLOR_SLOTS.length; i++) {
-			if (COLOR_SLOTS[i] != slot) {
+			if (COLOR_SLOTS[i] != slot || i >= shown.size()) {
 				continue;
 			}
-			String name = GlowPalette.ALL_COLORS.get(i).getSerializedName();
-			if (button == 1) {
+			String name = shown.get(i).getSerializedName();
+			int position = config.palette.indexOf(name);
+			if (input == ContainerInput.QUICK_MOVE) {
 				config.palette.remove(name);
-				config.palette.add(0, name);
-			} else if (!config.palette.remove(name)) {
-				config.palette.add(name);
-			} else if (config.palette.isEmpty()) {
+				config.palette.addFirst(name);
+			} else if (button == 1) {
+				if (position > 0) {
+					config.palette.remove(position);
+					config.palette.add(position - 1, name);
+				}
+			} else if (position >= 0) {
 				// Never leave the mod without a single color to hand out.
+				if (config.palette.size() > 1) {
+					config.palette.remove(position);
+				}
+			} else {
 				config.palette.add(name);
 			}
-			GlowPlayers.applyAndSave(player.level().getServer());
+			GlowPlayers.applyAndSave(server());
 			refresh();
 			return;
 		}

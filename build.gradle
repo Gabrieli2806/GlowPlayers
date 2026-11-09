@@ -11,11 +11,19 @@ base {
 }
 
 repositories {
-	// Add repositories to retrieve artifacts from in here.
-	// You should only use this when depending on other mods because
-	// Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
-	// See https://docs.gradle.org/current/userguide/declaring_repositories.html
-	// for more information about repositories.
+	// ViaFabric/ViaVersion/ViaBackwards for the dev server only, so the Mineflayer test bots (which speak an
+	// older protocol) can join. See testing/.
+	exclusiveContent {
+		forRepository {
+			maven {
+				name = "Modrinth"
+				url = "https://api.modrinth.com/maven"
+			}
+		}
+		filter {
+			includeGroup "maven.modrinth"
+		}
+	}
 }
 
 dependencies {
@@ -25,7 +33,11 @@ dependencies {
 
 	// Fabric API. This is technically optional, but you probably want it anyway.
 	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
-	
+
+	// Dev runtime only: never bundled or published.
+	localRuntime "maven.modrinth:viafabric:${project.viafabric_version}"
+	localRuntime "maven.modrinth:viaversion:${project.viaversion_version}"
+	localRuntime "maven.modrinth:viabackwards:${project.viabackwards_version}"
 }
 
 processResources {
@@ -37,7 +49,7 @@ processResources {
 }
 
 tasks.withType(JavaCompile).configureEach {
-	it.options.release = 25
+	it.options.release = project.java_version as int
 }
 
 java {
@@ -46,8 +58,9 @@ java {
 	// If you remove this line, sources will not be generated.
 	withSourcesJar()
 
-	sourceCompatibility = JavaVersion.VERSION_25
-	targetCompatibility = JavaVersion.VERSION_25
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(project.java_version as int)
+	}
 }
 
 jar {

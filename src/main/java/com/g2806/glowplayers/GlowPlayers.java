@@ -11,6 +11,9 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.permissions.Permission;
+import net.minecraft.server.permissions.PermissionLevel;
+import net.minecraft.server.permissions.PermissionSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,6 +42,12 @@ public class GlowPlayers implements ModInitializer {
 		if (server != null) {
 			MANAGER.refreshAll(server);
 		}
+	}
+
+	/** Whether these permissions reach the configured admin level. */
+	public static boolean isAdmin(PermissionSet permissions) {
+		int level = CONFIGS.get().adminPermissionLevel;
+		return permissions.hasPermission(new Permission.HasCommandLevel(PermissionLevel.byId(level)));
 	}
 
 	@Override
